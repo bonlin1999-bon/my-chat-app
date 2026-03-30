@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>即時聊天室</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --bg2: #13161e;
+    --bg3: #1a1e2a;
+    --border: #252a38;
+    --accent: #5b6af0;
+    --accent2: #7c89ff;
+    --accent-glow: rgba(91,106,240,0.18);
+    --text: #e8eaf2;
+    --muted: #6b7394;
+    --muted2: #3d4260;
+    --online: #3dd68c;
+    --danger: #f06292;
+    --font: 'Noto Sans TC', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+    --radius: 14px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    height: 100vh;
+  }
+
+  /* ── 登入畫面 ── */
+  #login-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+    animation: fadeIn .4s ease;
+  }
+  .login-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 44px;
+    width: 380px;
+    box-shadow: 0 0 60px rgba(91,106,240,0.08);
+  }
+  .login-logo {
+    width: 44px; height: 44px;
+    background: var(--accent);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 24px;
+    box-shadow: 0 0 24px var(--accent-glow);
+  }
+  .login-logo svg { width: 22px; height: 22px; fill: #fff; }
+  .login-card h1 { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .login-card p { font-size: 13px; color: var(--muted); margin-bottom: 32px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-bottom: 8px; letter-spacing: .04em; text-transform: uppercase; }
+  .field input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 11px 14px;
+    font-size: 14px;
+    font-family: var(--font);
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s;
+  }
+  .field input:focus { border-color: var(--accent); }
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: background .2s, box-shadow .2s;
+    margin-top: 8px;
+  }
+  .btn-primary:hover { background: var(--accent2); box-shadow: 0 4px 20px var(--accent-glow); }
+  .btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ── 主畫面 ── */
+  #app { display: none; width: 100%; height: 100%; }
+  #app.show { display: flex; }
+
+  /* ── 側欄 ── */
+  .sidebar {
+    width: 260px; min-width: 260px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    height: 100%;
+  }
+  .sidebar-header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sidebar-logo {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .sidebar-logo svg { width: 16px; height: 16px; fill: #fff; }
+  .sidebar-title { font-size: 15px; font-weight: 700; }
+  .sidebar-section {
+    padding: 16px 12px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .room-item {
+    margin: 2px 8px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    display: flex; align-items: center; gap: 10px;
+    transition: background .15s;
+    font-size: 14px;
+  }
+  .room-item:hover { background: var(--bg3); }
+  .room-item.active { background: var(--accent-glow); color: var(--accent2); }
+  .room-item .room-hash { color: var(--muted); font-size: 16px; font-weight: 300; }
+  .room-item.active .room-hash { color: var(--accent2); }
+  .sidebar-footer {
+    margin-top: auto;
+    border-top: 1px solid var(--border);
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .avatar {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .avatar::after {
+    content: '';
+    position: absolute; bottom: 1px; right: 1px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--online);
+    border: 2px solid var(--bg2);
+  }
+  .user-name { font-size: 13px; font-weight: 500; }
+  .user-tag { font-size: 11px; color: var(--muted); }
+  .logout-btn {
+    margin-left: auto;
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    padding: 4px; border-radius: 6px;
+    transition: color .2s, background .2s;
+    display: flex; align-items: center;
+  }
+  .logout-btn:hover { color: var(--danger); background: rgba(240,98,146,.08); }
+
+  /* ── 主聊天區 ── */
+  .chat-area {
+    flex: 1; display: flex; flex-direction: column;
+    height: 100%; overflow: hidden;
+  }
+  .chat-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg);
+  }
+  .chat-header-hash { font-size: 20px; color: var(--muted); font-weight: 300; }
+  .chat-header-name { font-size: 16px; font-weight: 600; }
+  .online-badge {
+    margin-left: auto;
+    font-size: 12px; color: var(--online);
+    display: flex; align-items: center; gap: 5px;
+  }
+  .online-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--online); }
+
+  /* ── 訊息列表 ── */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 24px 8px;
+    display: flex; flex-direction: column; gap: 2px;
+    scroll-behavior: smooth;
+  }
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: var(--muted2); border-radius: 4px; }
+  .msg-group { margin-bottom: 6px; }
+  .msg-header {
+    display: flex; align-items: baseline; gap: 10px;
+    margin-bottom: 4px;
+  }
+  .msg-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin-top: 2px;
+  }
+  .msg-body { flex: 1; }
+  .msg-name { font-size: 14px; font-weight: 600; }
+  .msg-name.is-me { color: var(--accent2); }
+  .msg-time { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+  .msg-text {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text);
+    padding: 2px 0;
+    word-break: break-word;
+  }
+  .msg-row { display: flex; gap: 12px; padding: 3px 0; }
+  .msg-row:hover .msg-text { color: #fff; }
+  .welcome-msg {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--muted);
+  }
+  .welcome-msg .icon { font-size: 40px; margin-bottom: 12px; }
+  .welcome-msg h3 { font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .welcome-msg p { font-size: 13px; line-height: 1.6; }
+
+  /* ── 輸入框 ── */
+  .input-area {
+    padding: 16px 24px 20px;
+    background: var(--bg);
+  }
+  .input-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 4px 4px 16px;
+    transition: border-color .2s;
+  }
+  .input-box:focus-within { border-color: var(--accent); }
+  .input-box input {
+    flex: 1;
+    background: none; border: none;
+    font-size: 14px; font-family: var(--font);
+    color: var(--text);
+    outline: none;
+    padding: 8px 0;
+  }
+  .input-box input::placeholder { color: var(--muted); }
+  .send-btn {
+    background: var(--accent);
+    border: none; border-radius: 10px;
+    width: 38px; height: 38px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .2s, box-shadow .2s;
+    flex-shrink: 0;
+  }
+  .send-btn:hover { background: var(--accent2); box-shadow: 0 2px 12px var(--accent-glow); }
+  .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .send-btn svg { width: 18px; height: 18px; fill: #fff; }
+  .input-hint { font-size: 11px; color: var(--muted); margin-top: 8px; padding-left: 4px; }
+
+  /* ── 設定提示 ── */
+  #config-banner {
+    position: fixed; top: 0; left: 0; right: 0;
+    background: #7c3a1a;
+    color: #ffd4b0;
+    font-size: 13px;
+    padding: 10px 20px;
+    text-align: center;
+    z-index: 200;
+  }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .msg-row { animation: fadeIn .2s ease; }
+
+  /* ── 空狀態 ── */
+  .no-room {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 12px; color: var(--muted);
+  }
+  .no-room svg { width: 48px; height: 48px; fill: var(--muted2); }
+  .no-room p { font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- ⚙️ 設定提示（設定好後可移除） -->
+<div id="config-banner">
+  ⚠️ 請先在程式碼頂端設定你的 <strong>SUPABASE_URL</strong> 與 <strong>SUPABASE_KEY</strong>
+</div>
+
+<!-- 登入畫面 -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z"/></svg>
+    </div>
+    <h1>加入聊天室</h1>
+    <p>輸入你的暱稱即可開始聊天，無需註冊帳號</p>
+    <div class="field">
+      <label>你的暱稱</label>
+      <input type="text" id="username-input" placeholder="例：小明、阿華..." maxlength="16" autocomplete="off">
+    </div>
+    <button class="btn-primary" id="join-btn" onclick="joinChat()">進入聊天室 →</button>
+  </div>
+</div>
+
+<!-- 主畫面 -->
+<div id="app">
+  <!-- 側欄 -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z"/></svg>
+      </div>
+      <span class="sidebar-title">即時聊天室</span>
+    </div>
+    <div class="sidebar-section">聊天室</div>
+    <div id="room-list"></div>
+    <div class="sidebar-footer">
+      <div class="avatar" id="user-avatar"></div>
+      <div>
+        <div class="user-name" id="user-display"></div>
+        <div class="user-tag">線上中</div>
+      </div>
+      <button class="logout-btn" onclick="logout()" title="登出">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor">
+          <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- 聊天區 -->
+  <div class="chat-area">
+    <div id="no-room-state" class="no-room">
+      <svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z"/></svg>
+      <p>請從左側選擇一個聊天室</p>
+    </div>
+    <div id="chat-view" style="display:none; flex-direction:column; height:100%;">
+      <div class="chat-header">
+        <span class="chat-header-hash">#</span>
+        <span class="chat-header-name" id="room-name-display"></span>
+        <div class="online-badge">
+          <div class="online-dot"></div>
+          <span id="online-count">線上</span>
+        </div>
+      </div>
+      <div class="messages" id="messages"></div>
+      <div class="input-area">
+        <div class="input-box">
+          <input type="text" id="msg-input" placeholder="輸入訊息..." maxlength="500" autocomplete="off">
+          <button class="send-btn" id="send-btn" onclick="sendMessage()">
+            <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+          </button>
+        </div>
+        <div class="input-hint">按 Enter 發送</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════
+//  ⚙️  在這裡填入你的 Supabase 設定
+// ════════════════════════════════════════════
+const SUPABASE_URL = 'https://wyekwxjycsdcsajdtgua.supabase.co';   // 例：https://xxxxxx.supabase.co
+const SUPABASE_KEY = 'sb_publishable_Xab8eToEyd2-Z4q4QXvWCQ_3zpN1Fng';       // 例：eyJhbGci...
+// ════════════════════════════════════════════
+
+const { createClient } = supabase;
+let sb, currentUser, currentRoomId, currentRoomName, realtimeChannel;
+
+// ── 初始化 ──
+function init() {
+  if (SUPABASE_URL.includes('你的') || SUPABASE_KEY.includes('你的')) {
+    document.getElementById('config-banner').style.display = 'block';
+    document.getElementById('join-btn').disabled = true;
+    return;
+  }
+  document.getElementById('config-banner').style.display = 'none';
+  sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  // 若已有暱稱，直接進入
+  const saved = sessionStorage.getItem('chat_username');
+  if (saved) enterApp(saved);
+}
+
+// ── 登入 ──
+function joinChat() {
+  const name = document.getElementById('username-input').value.trim();
+  if (!name) { alert('請輸入暱稱！'); return; }
+  sessionStorage.setItem('chat_username', name);
+  enterApp(name);
+}
+
+function enterApp(name) {
+  currentUser = name;
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  document.getElementById('user-display').textContent = name;
+  document.getElementById('user-avatar').textContent = name[0].toUpperCase();
+  document.getElementById('user-avatar').style.background = strToColor(name);
+  loadRooms();
+}
+
+// ── 登出 ──
+function logout() {
+  sessionStorage.removeItem('chat_username');
+  if (realtimeChannel) sb.removeChannel(realtimeChannel);
+  location.reload();
+}
+
+// ── 載入聊天室列表 ──
+async function loadRooms() {
+  const { data, error } = await sb.from('rooms').select('*').order('created_at');
+  if (error) { console.error(error); return; }
+
+  const list = document.getElementById('room-list');
+  list.innerHTML = '';
+  data.forEach(room => {
+    const el = document.createElement('div');
+    el.className = 'room-item';
+    el.innerHTML = `<span class="room-hash">#</span><span>${room.name}</span>`;
+    el.onclick = () => enterRoom(room.id, room.name);
+    el.dataset.id = room.id;
+    list.appendChild(el);
+  });
+
+  // 預設進入第一個聊天室
+  if (data.length > 0) enterRoom(data[0].id, data[0].name);
+}
+
+// ── 進入聊天室 ──
+async function enterRoom(roomId, roomName) {
+  currentRoomId = roomId;
+  currentRoomName = roomName;
+
+  // 更新側欄 active 狀態
+  document.querySelectorAll('.room-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.id === roomId);
+  });
+
+  // 顯示聊天介面
+  document.getElementById('no-room-state').style.display = 'none';
+  const chatView = document.getElementById('chat-view');
+  chatView.style.display = 'flex';
+  document.getElementById('room-name-display').textContent = roomName;
+
+  // 清空訊息
+  document.getElementById('messages').innerHTML = '';
+
+  // 取消舊訂閱
+  if (realtimeChannel) await sb.removeChannel(realtimeChannel);
+
+  // 載入歷史訊息
+  await loadHistory(roomId);
+
+  // 訂閱即時訊息
+  realtimeChannel = sb
+    .channel(`room:${roomId}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: `room_id=eq.${roomId}`
+    }, payload => {
+      appendMessage(payload.new, true);
+    })
+    .subscribe();
+
+  // 聚焦輸入框
+  document.getElementById('msg-input').focus();
+}
+
+// ── 載入歷史訊息 ──
+async function loadHistory(roomId) {
+  const { data, error } = await sb
+    .from('messages')
+    .select('*')
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: true })
+    .limit(80);
+
+  if (error) { console.error(error); return; }
+
+  const container = document.getElementById('messages');
+  if (data.length === 0) {
+    container.innerHTML = `
+      <div class="welcome-msg">
+        <div class="icon">💬</div>
+        <h3>#${currentRoomName}</h3>
+        <p>這是聊天室的開始，成為第一個發言的人吧！</p>
+      </div>`;
+    return;
+  }
+  data.forEach(msg => appendMessage(msg, false));
+  scrollToBottom();
+}
+
+// ── 顯示訊息 ──
+function appendMessage(msg, animate) {
+  const container = document.getElementById('messages');
+
+  // 移除歡迎訊息
+  const welcome = container.querySelector('.welcome-msg');
+  if (welcome) welcome.remove();
+
+  const isMe = msg.username === currentUser;
+  const time = new Date(msg.created_at).toLocaleTimeString('zh-Hant', { hour: '2-digit', minute: '2-digit' });
+  const color = strToColor(msg.username);
+  const initial = msg.username[0].toUpperCase();
+
+  const row = document.createElement('div');
+  row.className = 'msg-row';
+  row.innerHTML = `
+    <div class="msg-avatar" style="background:${color}">${initial}</div>
+    <div class="msg-body">
+      <div class="msg-header">
+        <span class="msg-name ${isMe ? 'is-me' : ''}">${escHtml(msg.username)}</span>
+        <span class="msg-time">${time}</span>
+      </div>
+      <div class="msg-text">${escHtml(msg.content)}</div>
+    </div>`;
+
+  if (!animate) row.style.animation = 'none';
+  container.appendChild(row);
+  if (animate) scrollToBottom();
+}
+
+// ── 發送訊息 ──
+async function sendMessage() {
+  const input = document.getElementById('msg-input');
+  const content = input.value.trim();
+  if (!content || !currentRoomId) return;
+
+  input.value = '';
+  document.getElementById('send-btn').disabled = true;
+
+  const { error } = await sb.from('messages').insert({
+    room_id: currentRoomId,
+    username: currentUser,
+    content
+  });
+
+  document.getElementById('send-btn').disabled = false;
+  if (error) { console.error(error); alert('發送失敗，請稍後再試'); }
+  input.focus();
+}
+
+// ── 工具函式 ──
+function scrollToBottom() {
+  const el = document.getElementById('messages');
+  setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50);
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function strToColor(str) {
+  const colors = ['#5b6af0','#e05fa0','#f0955b','#3dd68c','#f0d45b','#5bc8f0','#a05bf0','#f05b5b'];
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  return colors[Math.abs(h) % colors.length];
+}
+
+// ── Enter 發送 ──
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('msg-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  document.getElementById('username-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') joinChat();
+  });
+  init();
+});
+</script>
+</body>
+</html>
