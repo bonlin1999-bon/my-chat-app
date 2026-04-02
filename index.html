@@ -836,8 +836,6 @@ function groupAndRenderReactions(reactions) {
 async function sendMessage() {
   const input = document.getElementById('msg-input');
   const content = input.value.trim();
-  if (!content && !selectedFile) return;
-  if (!currentRoomId) return;
   if (!sb) { showToast('連線中，請稍後再試'); return; }
 
   // 編輯模式
@@ -859,7 +857,11 @@ async function sendMessage() {
     if (!res) { btn.disabled = false; return; }
     file_url = res.url; file_name = res.name; cancelUpload();
   }
-  await sb.from('messages').insert({ room_id: currentRoomId, username: currentUser, content: content || null, file_url, file_name });
+  const { error } = await sb.from('messages').insert({ room_id: currentRoomId, username: currentUser, content: content || null, file_url, file_name });
+  if (error) {
+    showToast('發送失敗：' + error.message);
+    btn.disabled = false; return;
+  }
   btn.disabled = false; input.focus();
 }
 
@@ -917,7 +919,7 @@ function strToColor(str) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('msg-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+  document.getElementById('msg-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { if (e.isComposing) return; e.preventDefault(); sendMessage(); } });
   document.getElementById('username-input').addEventListener('keydown', e => { if (e.key === 'Enter') joinChat(); });
   document.getElementById('new-room-name').addEventListener('keydown', e => { if (e.key === 'Enter') createRoom(); });
   document.getElementById('room-pwd-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitPwd(); });
