@@ -640,12 +640,13 @@ function updateTypingIndicator() {
 
 // ── 歷史訊息 ──
 async function loadHistory(roomId) {
-  const { data } = await sb.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: true }).limit(80);
+  const { data } = await sb.from('messages').select('*').eq('room_id', roomId).order('created_at', { ascending: false }).limit(80);
   const container = document.getElementById('messages');
   if (!data || data.length === 0) {
     container.innerHTML = `<div class="welcome-msg"><div class="icon">💬</div><h3>#${escHtml(currentRoomName)}</h3><p>這是聊天室的開始，成為第一個發言的人吧！</p></div>`;
     return;
   }
+  data.reverse(); // Reverse so older messages are at the top and newest at the bottom
   let lastDate = '';
   for (const msg of data) {
     const d = new Date(msg.created_at).toLocaleDateString('zh-Hant', { month: 'long', day: 'numeric' });
