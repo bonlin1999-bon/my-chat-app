@@ -4,8 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0d0f14">
+<link rel="manifest" href="/manifest.json">
 <title>即時聊天室</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -24,7 +26,7 @@
 html,body{height:100%;overflow:hidden}
 body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;height:100dvh}
 
-/* ══ 載入畫面 ══ */
+/* ══ 載入 ══ */
 #loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:200;flex-direction:column;gap:16px}
 .loading-logo{width:56px;height:56px;background:var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center}
 .loading-logo svg{width:28px;height:28px;fill:#fff}
@@ -33,7 +35,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 @keyframes dots{0%{content:''}33%{content:'.'}66%{content:'..'}100%{content:'...'}}
 
 /* ══ 登入 ══ */
-#login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+#login-screen{position:fixed;inset:0;background:var(--bg);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
 .lcard{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:40px 32px;width:100%;max-width:360px}
 .llogo{width:48px;height:48px;background:var(--accent);border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:20px}
 .llogo svg{width:24px;height:24px;fill:#fff}
@@ -43,14 +45,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .field label{display:block;font-size:11px;font-weight:600;color:var(--muted);margin-bottom:7px;letter-spacing:.05em;text-transform:uppercase}
 .field input{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:12px 14px;font-size:15px;font-family:var(--font);color:var(--text);outline:none;transition:border-color .2s}
 .field input:focus{border-color:var(--accent)}
-.btn-p{width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;font-family:var(--font);cursor:pointer;margin-top:6px;transition:opacity .15s}
+.btn-p{width:100%;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:600;font-family:var(--font);cursor:pointer;margin-top:6px}
 .btn-p:active{opacity:.8}
 
 /* ══ 主畫面 ══ */
 #app{display:none;width:100%;height:100%}
 #app.show{display:flex}
-
-/* ══ 側欄遮罩 ══ */
 #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:40;backdrop-filter:blur(2px)}
 #sidebar-overlay.show{display:block}
 
@@ -75,8 +75,10 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .av::after{content:'';position:absolute;bottom:1px;right:1px;width:9px;height:9px;border-radius:50%;background:var(--green);border:2px solid var(--bg2)}
 .u-name{font-size:13px;font-weight:500}
 .u-tag{font-size:11px;color:var(--muted)}
-.logout-btn{margin-left:auto;background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;border-radius:6px;display:flex;transition:color .2s}
-.logout-btn:hover{color:var(--red)}
+.sb-foot-btns{margin-left:auto;display:flex;gap:4px}
+.icon-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;border-radius:6px;display:flex;transition:color .2s}
+.icon-btn:hover{color:var(--accent2)}
+.icon-btn.danger:hover{color:var(--red)}
 
 /* ══ 聊天區 ══ */
 .chat-area{flex:1;display:flex;flex-direction:column;height:100%;overflow:hidden;min-width:0}
@@ -85,44 +87,74 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .menu-btn svg{width:20px;height:20px;fill:currentColor}
 .ch-hash{font-size:18px;color:var(--muted);font-weight:300}
 .ch-name{font-size:15px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.notif-btn{background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--muted);transition:color .2s,background .2s;display:flex;align-items:center}
-.notif-btn:hover{color:var(--accent2);background:var(--ag)}
-.notif-btn svg{width:18px;height:18px;fill:currentColor}
-.notif-btn.on{color:var(--accent2)}
+.head-btn{background:none;border:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--muted);transition:color .2s,background .2s;display:flex;align-items:center}
+.head-btn:hover{color:var(--accent2);background:var(--ag)}
+.head-btn svg{width:18px;height:18px;fill:currentColor}
+.head-btn.on{color:var(--accent2)}
 
 /* ══ 訊息 ══ */
-.messages{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:6px;scroll-behavior:smooth}
+.messages{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:4px;scroll-behavior:smooth}
 .messages::-webkit-scrollbar{width:4px}
 .messages::-webkit-scrollbar-thumb{background:var(--muted2);border-radius:4px}
-.msg-row{display:flex;align-items:flex-end;gap:8px;max-width:100%}
+.msg-row{display:flex;align-items:flex-end;gap:8px;max-width:100%;position:relative}
 .msg-row.me{flex-direction:row-reverse}
-.msg-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:12px;font-size:12px;font-weight:700;flex-shrink:0}
+.msg-av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
 .msg-row.me .msg-av{display:none}
 .msg-col{display:flex;flex-direction:column;max-width:72%;min-width:0}
 .msg-row.me .msg-col{align-items:flex-end}
 .msg-meta{font-size:11px;color:var(--muted);margin-bottom:3px;display:flex;align-items:center;gap:6px}
 .msg-row.me .msg-meta{flex-direction:row-reverse}
 .msg-uname{font-weight:600;font-size:12px}
-.bubble{padding:10px 14px;border-radius:18px;word-break:break-word;font-size:14px;line-height:1.55;position:relative}
+.bubble{padding:10px 14px;border-radius:18px;word-break:break-word;font-size:14px;line-height:1.55;position:relative;cursor:pointer}
 .msg-row.other .bubble{background:var(--other);color:var(--other-t);border-bottom-left-radius:4px}
 .msg-row.me .bubble{background:var(--me);color:var(--me-t);border-bottom-right-radius:4px}
+.msg-row.deleted .bubble{opacity:.5;font-style:italic}
+.edited-tag{font-size:10px;opacity:.6;margin-left:4px}
 .bubble-img{max-width:220px;max-height:220px;border-radius:14px;display:block;cursor:zoom-in;object-fit:cover}
-.msg-row.me .bubble-img{border-bottom-right-radius:4px}
-.msg-row.other .bubble-img{border-bottom-left-radius:4px}
 .bubble-file{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-size:13px}
 .msg-row.me .bubble-file{color:rgba(255,255,255,.9)}
 .msg-row.other .bubble-file{color:var(--other-t)}
 .bubble-file svg{width:16px;height:16px;fill:currentColor;flex-shrink:0}
+
+/* ══ 표情 反應 ══ */
+.reactions{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.reaction-pill{display:inline-flex;align-items:center;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:2px 8px;font-size:13px;cursor:pointer;transition:background .15s,border-color .15s;user-select:none}
+.reaction-pill:hover{background:var(--ag);border-color:var(--accent)}
+.reaction-pill.mine{background:var(--ag);border-color:var(--accent)}
+.reaction-pill .r-count{font-size:12px;color:var(--muted)}
+
+/* ══ 訊息操作選單 ══ */
+.msg-actions{position:absolute;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:4px;display:none;flex-direction:column;gap:2px;z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.3);min-width:120px}
+.msg-actions.show{display:flex}
+.msg-row.me .msg-actions{right:0;top:-80px}
+.msg-row.other .msg-actions{left:40px;top:-80px}
+.action-item{background:none;border:none;color:var(--text);cursor:pointer;padding:6px 12px;border-radius:6px;font-size:13px;font-family:var(--font);text-align:left;transition:background .15s;display:flex;align-items:center;gap:8px}
+.action-item:hover{background:var(--bg3)}
+.action-item.danger{color:var(--red)}
+
+/* ══ Emoji 選擇器 ══ */
+.emoji-picker{position:absolute;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:8px;display:none;z-index:20;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+.emoji-picker.show{display:flex;gap:4px}
+.msg-row.me .emoji-picker{right:0;top:-50px}
+.msg-row.other .emoji-picker{left:40px;top:-50px}
+.ep-btn{background:none;border:none;cursor:pointer;font-size:20px;padding:4px 6px;border-radius:8px;transition:background .15s}
+.ep-btn:hover{background:var(--bg3)}
+
+/* ══ 打字提示 ══ */
+.typing-indicator{padding:4px 14px 8px;font-size:12px;color:var(--muted);min-height:24px}
+
+/* ══ 日期分隔 ══ */
 .date-divider{text-align:center;font-size:11px;color:var(--muted);margin:10px 0;display:flex;align-items:center;gap:8px}
 .date-divider::before,.date-divider::after{content:'';flex:1;height:1px;background:var(--border)}
 .welcome-msg{text-align:center;padding:48px 20px;color:var(--muted);margin:auto}
 .welcome-msg .icon{font-size:40px;margin-bottom:12px}
 .welcome-msg h3{font-size:17px;font-weight:600;color:var(--text);margin-bottom:6px}
-.welcome-msg p{font-size:13px;line-height:1.6}
 .no-room{flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--muted)}
 
 /* ══ 輸入框 ══ */
 .input-area{padding:10px 14px 14px;background:var(--bg);flex-shrink:0}
+.edit-banner{background:var(--ag);border:1px solid var(--accent);border-radius:8px;padding:6px 12px;margin-bottom:8px;font-size:12px;color:var(--accent2);display:flex;align-items:center;justify-content:space-between}
+.edit-banner-cancel{background:none;border:none;color:var(--accent2);cursor:pointer;font-size:16px}
 .upload-preview{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:13px}
 .upload-preview .pname{flex:1;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .upload-preview .pcancel{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 2px}
@@ -151,8 +183,20 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 .modal-btns{display:flex;gap:10px;margin-top:18px}
 .btn-s{flex:1;background:var(--bg3);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:14px;font-family:var(--font);cursor:pointer}
 .btn-ok{flex:1;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer}
+.btn-danger{flex:1;background:var(--red);color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer}
 .opt-tag{font-size:11px;color:var(--muted);margin-left:4px}
 .err-msg{color:var(--red);font-size:12px;margin-top:-8px;margin-bottom:10px}
+
+/* ══ 管理員面板 ══ */
+.admin-panel{background:var(--bg2);border:1px solid var(--border);border-radius:20px 20px 0 0;padding:28px 24px 32px;width:100%;max-width:440px}
+@media(min-width:600px){.admin-panel{border-radius:20px}}
+.admin-panel h2{font-size:18px;font-weight:700;margin-bottom:16px;color:var(--red)}
+.room-select{width:100%;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-size:14px;font-family:var(--font);color:var(--text);outline:none;margin-bottom:12px}
+.clear-option{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.clear-option:hover{border-color:var(--red)}
+.clear-option input{accent-color:var(--accent);width:16px;height:16px}
+.clear-option label{font-size:14px;cursor:pointer;flex:1}
+.clear-option span{font-size:12px;color:var(--muted)}
 
 /* ══ 燈箱 ══ */
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;z-index:300;cursor:zoom-out;padding:20px}
@@ -177,14 +221,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 </head>
 <body>
 
-<!-- 載入畫面 -->
+<!-- 載入 -->
 <div id="loading-screen">
   <div class="loading-logo"><svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z"/></svg></div>
   <div class="loading-text loading-dots">載入中</div>
 </div>
 
 <!-- 登入 -->
-<div id="login-screen" style="display:none">
+<div id="login-screen">
   <div class="lcard">
     <div class="llogo"><svg viewBox="0 0 24 24"><path d="M20 2H4a2 2 0 00-2 2v18l4-4h14a2 2 0 002-2V4a2 2 0 00-2-2z"/></svg></div>
     <h1>加入聊天室</h1>
@@ -222,6 +266,40 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
   </div>
 </div>
 
+<!-- 管理員 Modal -->
+<div id="admin-modal" class="modal-overlay" style="display:none">
+  <div class="admin-panel">
+    <h2>🛡️ 管理員面板</h2>
+    <div id="admin-login" style="display:block">
+      <div class="field"><label>管理員密碼</label><input type="password" id="admin-pwd-input" placeholder="輸入管理員密碼..."></div>
+      <div id="admin-error" class="err-msg" style="display:none">密碼錯誤</div>
+      <div class="modal-btns">
+        <button class="btn-s" onclick="closeAdminModal()">取消</button>
+        <button class="btn-ok" onclick="verifyAdmin()">登入</button>
+      </div>
+    </div>
+    <div id="admin-panel" style="display:none">
+      <div class="field"><label>選擇聊天室</label>
+        <select id="admin-room-select" class="room-select"><option value="all">全部聊天室</option></select>
+      </div>
+      <div class="clear-option" onclick="document.getElementById('clear-old').click()">
+        <input type="radio" name="clear-type" id="clear-old" value="old" checked>
+        <label for="clear-old">清除 30 天前的訊息</label>
+        <span>保留近期</span>
+      </div>
+      <div class="clear-option" onclick="document.getElementById('clear-all').click()">
+        <input type="radio" name="clear-type" id="clear-all" value="all">
+        <label for="clear-all">清除全部訊息</label>
+        <span>⚠️ 不可還原</span>
+      </div>
+      <div class="modal-btns" style="margin-top:16px">
+        <button class="btn-s" onclick="closeAdminModal()">關閉</button>
+        <button class="btn-danger" onclick="executeAdminClear()">執行清除</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 側欄遮罩 -->
 <div id="sidebar-overlay" onclick="closeSidebar()"></div>
 
@@ -241,9 +319,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
     <div class="sb-foot">
       <div class="av" id="user-avatar"></div>
       <div><div class="u-name" id="user-display"></div><div class="u-tag">線上中</div></div>
-      <button class="logout-btn" onclick="logout()" title="登出">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
-      </button>
+      <div class="sb-foot-btns">
+        <button class="icon-btn" onclick="openAdminModal()" title="管理員">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
+        </button>
+        <button class="icon-btn danger" onclick="logout()" title="登出">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5-5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -260,12 +343,17 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
         <span class="ch-hash">#</span>
         <span class="ch-name" id="room-name-display"></span>
         <span id="room-lock-icon" style="font-size:14px;color:var(--muted)"></span>
-        <button class="notif-btn" id="notif-btn" onclick="toggleNotif()" title="開啟通知">
-          <svg id="notif-icon" viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+        <button class="head-btn" id="notif-btn" onclick="toggleNotif()" title="開啟通知">
+          <svg viewBox="0 0 24 24"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
         </button>
       </div>
-      <div class="messages" id="messages"></div>
+      <div class="messages" id="messages" onclick="closeAllMenus()"></div>
+      <div class="typing-indicator" id="typing-indicator"></div>
       <div class="input-area">
+        <div id="edit-banner" style="display:none" class="edit-banner">
+          <span>✏️ 編輯訊息中</span>
+          <button class="edit-banner-cancel" onclick="cancelEdit()">✕</button>
+        </div>
         <div id="upload-preview" style="display:none" class="upload-preview">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="var(--accent2)"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
           <span class="pname" id="upload-fname"></span>
@@ -277,12 +365,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
             <svg viewBox="0 0 24 24"><path d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 015 0v10.5c0 .83-.67 1.5-1.5 1.5s-1.5-.67-1.5-1.5V6H9v9.5a3.5 3.5 0 007 0V5c0-2.76-2.24-5-5-5S6 2.24 6 5v12.5c0 3.87 3.13 7 7 7s7-3.13 7-7V6h-3.5z"/></svg>
           </button>
           <input type="file" id="file-input" style="display:none" accept="image/*,.pdf,.doc,.docx,.txt,.zip" onchange="handleFile(this)">
-          <input type="text" id="msg-input" placeholder="輸入訊息..." maxlength="500" autocomplete="off">
+          <input type="text" id="msg-input" placeholder="輸入訊息..." maxlength="500" autocomplete="off" oninput="handleTyping()">
           <button class="send-btn" id="send-btn" onclick="sendMessage()">
             <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
           </button>
         </div>
-        <div class="input-hint">按 Enter 發送・📎 傳送圖片／檔案（最大 10MB）</div>
+        <div class="input-hint">按 Enter 發送・📎 傳送圖片／檔案・長按訊息可編輯或刪除</div>
       </div>
     </div>
   </div>
@@ -290,10 +378,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 
 <script>
 const { createClient } = supabase;
-let sb, currentUser, currentRoomId, currentRoomName, realtimeChannel;
+let sb, currentUser, currentRoomId, currentRoomName, realtimeChannel, presenceChannel;
 let pendingRoom = null, selectedFile = null, notifEnabled = false;
+let editingMsgId = null, typingTimeout = null;
+const EMOJIS = ['👍','❤️','😂','😮','😢','🔥'];
 
-// ── 啟動：從 API 取得設定 ──
 async function init() {
   try {
     const res = await fetch('/api/config');
@@ -302,11 +391,18 @@ async function init() {
     sb = createClient(url, key);
     document.getElementById('loading-screen').style.display = 'none';
     const saved = sessionStorage.getItem('chat_username');
-    if (saved) { enterApp(saved); }
+    if (saved) enterApp(saved);
     else { document.getElementById('login-screen').style.display = 'flex'; }
-  } catch (e) {
+    registerSW();
+  } catch(e) {
     document.querySelector('.loading-text').textContent = '載入失敗，請重新整理';
-    console.error(e);
+  }
+}
+
+// ── PWA Service Worker ──
+function registerSW() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(()=>{});
   }
 }
 
@@ -333,7 +429,12 @@ function enterApp(name) {
   loadRooms();
 }
 
-function logout() { sessionStorage.removeItem('chat_username'); if (realtimeChannel) sb.removeChannel(realtimeChannel); location.reload(); }
+function logout() {
+  sessionStorage.removeItem('chat_username');
+  if (realtimeChannel) sb.removeChannel(realtimeChannel);
+  if (presenceChannel) sb.removeChannel(presenceChannel);
+  location.reload();
+}
 
 // ── 通知 ──
 async function toggleNotif() {
@@ -344,27 +445,70 @@ async function toggleNotif() {
   else { showToast('請在瀏覽器設定中允許通知'); }
 }
 
-function updateNotifBtn() {
-  document.getElementById('notif-btn').classList.toggle('on', notifEnabled);
-}
+function updateNotifBtn() { document.getElementById('notif-btn').classList.toggle('on', notifEnabled); }
 
 function sendNotif(msg) {
   if (!notifEnabled || Notification.permission !== 'granted') return;
   if (document.visibilityState === 'visible') return;
   if (msg.username === currentUser) return;
-  new Notification(`${msg.username}：`, {
-    body: msg.content || (msg.file_name ? `傳送了檔案：${msg.file_name}` : '傳送了圖片'),
-    tag: 'chat-msg'
+  new Notification(`${msg.username}：`, { body: msg.content || '傳送了檔案', tag: 'chat-msg' });
+}
+
+// ── 管理員 ──
+function openAdminModal() {
+  document.getElementById('admin-pwd-input').value = '';
+  document.getElementById('admin-error').style.display = 'none';
+  document.getElementById('admin-login').style.display = 'block';
+  document.getElementById('admin-panel').style.display = 'none';
+  document.getElementById('admin-modal').style.display = 'flex';
+}
+
+function closeAdminModal() { document.getElementById('admin-modal').style.display = 'none'; }
+
+async function verifyAdmin() {
+  const pwd = document.getElementById('admin-pwd-input').value;
+  try {
+    const res = await fetch('/api/admin', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'verify', password: pwd }) });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('admin-login').style.display = 'none';
+      document.getElementById('admin-panel').style.display = 'block';
+      loadAdminRooms();
+    } else {
+      document.getElementById('admin-error').style.display = 'block';
+    }
+  } catch(e) { showToast('驗證失敗'); }
+}
+
+async function loadAdminRooms() {
+  const { data } = await sb.from('rooms').select('*').order('created_at');
+  const sel = document.getElementById('admin-room-select');
+  sel.innerHTML = '<option value="all">全部聊天室</option>';
+  (data||[]).forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r.id; opt.textContent = r.name;
+    sel.appendChild(opt);
   });
 }
 
-function showToast(text) {
-  const old = document.querySelector('.toast');
-  if (old) old.remove();
-  const t = document.createElement('div');
-  t.className = 'toast'; t.textContent = text;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 2500);
+async function executeAdminClear() {
+  const pwd = document.getElementById('admin-pwd-input').value || sessionStorage.getItem('admin_verified');
+  const roomId = document.getElementById('admin-room-select').value;
+  const clearType = document.querySelector('input[name="clear-type"]:checked').value;
+  if (!confirm(`確定要清除訊息嗎？此操作不可還原！`)) return;
+  try {
+    const res = await fetch('/api/admin', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ action: 'clear', password: document.getElementById('admin-pwd-input').value || '', roomId, clearType })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`已清除 ${data.count} 則訊息`);
+      closeAdminModal();
+      if (currentRoomId) { document.getElementById('messages').innerHTML = ''; await loadHistory(currentRoomId); }
+    } else { showToast('清除失敗：' + (data.error || '未知錯誤')); }
+  } catch(e) { showToast('清除失敗'); }
 }
 
 // ── 聊天室列表 ──
@@ -372,12 +516,12 @@ async function loadRooms() {
   const { data } = await sb.from('rooms').select('*').order('created_at');
   const list = document.getElementById('room-list');
   list.innerHTML = '';
-  (data || []).forEach(room => {
+  (data||[]).forEach(room => {
     const el = document.createElement('div');
     el.className = 'room-item';
     el.dataset.id = room.id;
     el.dataset.pwd = room.password || '';
-    el.innerHTML = `<span class="r-hash">#</span><span>${escHtml(room.name)}</span>${room.password ? '<span class="r-lock">🔒</span>' : ''}`;
+    el.innerHTML = `<span class="r-hash">#</span><span>${escHtml(room.name)}</span>${room.password?'<span class="r-lock">🔒</span>':''}`;
     el.onclick = () => { tryEnterRoom(room); closeSidebar(); };
     list.appendChild(el);
   });
@@ -409,7 +553,6 @@ function submitPwd() {
     document.getElementById('room-pwd-input').focus();
   }
 }
-
 function closePwdModal() { document.getElementById('pwd-modal').style.display = 'none'; pendingRoom = null; }
 
 // ── 建立聊天室 ──
@@ -443,13 +586,52 @@ async function enterRoom(roomId, roomName, skipCheck) {
   const roomEl = document.querySelector(`.room-item[data-id="${roomId}"]`);
   document.getElementById('room-lock-icon').textContent = roomEl && roomEl.dataset.pwd ? '🔒' : '';
   document.getElementById('messages').innerHTML = '';
+  document.getElementById('typing-indicator').textContent = '';
+  cancelEdit();
   if (realtimeChannel) await sb.removeChannel(realtimeChannel);
+  if (presenceChannel) await sb.removeChannel(presenceChannel);
   await loadHistory(roomId);
+
   realtimeChannel = sb.channel('messages-' + roomId, { config: { broadcast: { self: true } } })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` },
       payload => { appendMessage(payload.new, true); sendNotif(payload.new); })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` },
+      payload => { updateMessageInDom(payload.new); })
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reactions' },
+      payload => { loadReactions(payload.new.message_id); })
+    .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'reactions' },
+      payload => { if (payload.old && payload.old.message_id) loadReactions(payload.old.message_id); })
     .subscribe(status => console.log('Realtime:', status));
+
+  presenceChannel = sb.channel('presence-' + roomId)
+    .on('presence', { event: 'sync' }, () => updateTypingIndicator())
+    .on('broadcast', { event: 'typing' }, ({ payload }) => showTyping(payload.username))
+    .subscribe();
+
   document.getElementById('msg-input').focus();
+}
+
+// ── 打字提示 ──
+let typingUsers = {};
+function handleTyping() {
+  if (!presenceChannel || !currentRoomId) return;
+  presenceChannel.send({ type: 'broadcast', event: 'typing', payload: { username: currentUser } });
+}
+
+function showTyping(username) {
+  if (username === currentUser) return;
+  typingUsers[username] = Date.now();
+  updateTypingIndicator();
+  setTimeout(updateTypingIndicator, 3000);
+}
+
+function updateTypingIndicator() {
+  const now = Date.now();
+  const active = Object.entries(typingUsers).filter(([,t]) => now - t < 3000).map(([u]) => u);
+  Object.keys(typingUsers).forEach(u => { if (now - typingUsers[u] >= 3000) delete typingUsers[u]; });
+  const el = document.getElementById('typing-indicator');
+  if (active.length > 0) el.textContent = active.join('、') + ' 正在輸入中...';
+  else el.textContent = '';
 }
 
 // ── 歷史訊息 ──
@@ -461,12 +643,16 @@ async function loadHistory(roomId) {
     return;
   }
   let lastDate = '';
-  data.forEach(msg => {
+  for (const msg of data) {
     const d = new Date(msg.created_at).toLocaleDateString('zh-Hant', { month: 'long', day: 'numeric' });
     if (d !== lastDate) { lastDate = d; addDateDivider(d); }
     appendMessage(msg, false);
-  });
+  }
   scrollToBottom();
+  // 載入所有訊息的反應
+  const ids = data.map(m => m.id);
+  const { data: reactions } = await sb.from('reactions').select('*').in('message_id', ids);
+  if (reactions) groupAndRenderReactions(reactions);
 }
 
 function addDateDivider(text) {
@@ -485,41 +671,184 @@ function appendMessage(msg, animate) {
   const color = strToColor(msg.username);
 
   let bubbleContent = '';
-  if (msg.file_url) {
-    const isImage = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(msg.file_url);
-    if (isImage) {
-      bubbleContent = `<img class="bubble-img" src="${escHtml(msg.file_url)}" alt="圖片" onclick="openLightbox('${escHtml(msg.file_url)}')">`;
-    } else {
-      bubbleContent = `<a class="bubble-file" href="${escHtml(msg.file_url)}" target="_blank">
-        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
-        ${escHtml(msg.file_name || '檔案')}</a>`;
+  if (msg.is_deleted) {
+    bubbleContent = '<span style="opacity:.6;font-style:italic">此訊息已刪除</span>';
+  } else {
+    if (msg.file_url) {
+      const isImage = /\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(msg.file_url);
+      if (isImage) bubbleContent = `<img class="bubble-img" src="${escHtml(msg.file_url)}" alt="圖片" onclick="openLightbox('${escHtml(msg.file_url)}')">`;
+      else bubbleContent = `<a class="bubble-file" href="${escHtml(msg.file_url)}" target="_blank"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>${escHtml(msg.file_name||'檔案')}</a>`;
     }
+    if (msg.content) bubbleContent += (bubbleContent?'<br>':'') + escHtml(msg.content);
+    if (msg.edited_at) bubbleContent += `<span class="edited-tag">（已編輯）</span>`;
   }
-  if (msg.content) bubbleContent += (bubbleContent ? '<br>' : '') + escHtml(msg.content);
 
   const row = document.createElement('div');
-  row.className = `msg-row ${isMe ? 'me' : 'other'}`;
+  row.className = `msg-row ${isMe?'me':'other'}${msg.is_deleted?' deleted':''}`;
+  row.dataset.id = msg.id;
+  row.dataset.content = msg.content || '';
+  row.dataset.mine = isMe ? '1' : '0';
   row.innerHTML = `
     <div class="msg-av" style="background:${color};justify-content:center">${escHtml(msg.username[0].toUpperCase())}</div>
     <div class="msg-col">
       <div class="msg-meta">
-        ${!isMe ? `<span class="msg-uname" style="color:${color}">${escHtml(msg.username)}</span>` : ''}
+        ${!isMe?`<span class="msg-uname" style="color:${color}">${escHtml(msg.username)}</span>`:''}
         <span>${time}</span>
       </div>
-      <div class="bubble">${bubbleContent}</div>
+      <div class="bubble" data-id="${msg.id}" onclick="handleBubbleClick(event,'${msg.id}',${isMe},${!!msg.is_deleted})">${bubbleContent}</div>
+      <div class="reactions" id="reactions-${msg.id}"></div>
+    </div>
+    <div class="emoji-picker" id="ep-${msg.id}">
+      ${EMOJIS.map(e=>`<button class="ep-btn" onclick="addReaction('${msg.id}','${e}')">${e}</button>`).join('')}
+    </div>
+    <div class="msg-actions" id="ma-${msg.id}">
+      <button class="action-item" onclick="showEmojiPicker('${msg.id}')">😊 表情反應</button>
+      ${isMe&&!msg.is_deleted?`<button class="action-item" onclick="startEdit('${msg.id}')">✏️ 編輯</button>`:''}
+      ${isMe&&!msg.is_deleted?`<button class="action-item danger" onclick="deleteMsg('${msg.id}')">🗑️ 刪除</button>`:''}
     </div>`;
+
   if (!animate) row.style.animation = 'none';
   container.appendChild(row);
   if (animate) scrollToBottom();
 }
 
-// ── 發送訊息 ──
+// ── 訊息操作 ──
+function handleBubbleClick(e, msgId, isMe, isDeleted) {
+  e.stopPropagation();
+  if (isDeleted) return;
+  closeAllMenus();
+  const ma = document.getElementById('ma-' + msgId);
+  if (ma) ma.classList.add('show');
+}
+
+function closeAllMenus() {
+  document.querySelectorAll('.msg-actions.show').forEach(el => el.classList.remove('show'));
+  document.querySelectorAll('.emoji-picker.show').forEach(el => el.classList.remove('show'));
+}
+
+function showEmojiPicker(msgId) {
+  closeAllMenus();
+  const ep = document.getElementById('ep-' + msgId);
+  if (ep) ep.classList.add('show');
+}
+
+function startEdit(msgId) {
+  closeAllMenus();
+  const row = document.querySelector(`.msg-row[data-id="${msgId}"]`);
+  if (!row) return;
+  const content = row.dataset.content;
+  editingMsgId = msgId;
+  document.getElementById('msg-input').value = content;
+  document.getElementById('edit-banner').style.display = 'flex';
+  document.getElementById('msg-input').focus();
+}
+
+function cancelEdit() {
+  editingMsgId = null;
+  document.getElementById('msg-input').value = '';
+  document.getElementById('edit-banner').style.display = 'none';
+}
+
+async function deleteMsg(msgId) {
+  closeAllMenus();
+  if (!confirm('確定要刪除這則訊息嗎？')) return;
+  await sb.from('messages').update({ is_deleted: true, content: null }).eq('id', msgId);
+}
+
+function updateMessageInDom(msg) {
+  const row = document.querySelector(`.msg-row[data-id="${msg.id}"]`);
+  if (!row) return;
+  const bubble = row.querySelector('.bubble');
+  if (!bubble) return;
+  if (msg.is_deleted) {
+    row.classList.add('deleted');
+    bubble.innerHTML = '<span style="opacity:.6;font-style:italic">此訊息已刪除</span>';
+  } else {
+    let content = '';
+    if (msg.content) content = escHtml(msg.content);
+    if (msg.edited_at) content += '<span class="edited-tag">（已編輯）</span>';
+    bubble.innerHTML = content;
+    row.dataset.content = msg.content || '';
+  }
+}
+
+// ── 表情反應 ──
+async function addReaction(msgId, emoji) {
+  closeAllMenus();
+  const { data: existing } = await sb.from('reactions').select('id').eq('message_id', msgId).eq('username', currentUser).eq('emoji', emoji);
+  if (existing && existing.length > 0) {
+    await sb.from('reactions').delete().eq('message_id', msgId).eq('username', currentUser).eq('emoji', emoji);
+  } else {
+    await sb.from('reactions').insert({ message_id: msgId, username: currentUser, emoji });
+  }
+}
+
+async function loadReactions(msgId) {
+  const { data } = await sb.from('reactions').select('*').eq('message_id', msgId);
+  if (!data) return;
+  const container = document.getElementById('reactions-' + msgId);
+  if (!container) return;
+  const grouped = {};
+  data.forEach(r => {
+    if (!grouped[r.emoji]) grouped[r.emoji] = [];
+    grouped[r.emoji].push(r.username);
+  });
+  container.innerHTML = '';
+  Object.entries(grouped).forEach(([emoji, users]) => {
+    const isMine = users.includes(currentUser);
+    const pill = document.createElement('div');
+    pill.className = 'reaction-pill' + (isMine ? ' mine' : '');
+    pill.title = users.join(', ');
+    pill.innerHTML = `${emoji}<span class="r-count">${users.length}</span>`;
+    pill.onclick = (e) => { e.stopPropagation(); addReaction(msgId, emoji); };
+    container.appendChild(pill);
+  });
+}
+
+function groupAndRenderReactions(reactions) {
+  const byMsg = {};
+  reactions.forEach(r => {
+    if (!byMsg[r.message_id]) byMsg[r.message_id] = [];
+    byMsg[r.message_id].push(r);
+  });
+  Object.entries(byMsg).forEach(([msgId, rxns]) => {
+    const container = document.getElementById('reactions-' + msgId);
+    if (!container) return;
+    const grouped = {};
+    rxns.forEach(r => {
+      if (!grouped[r.emoji]) grouped[r.emoji] = [];
+      grouped[r.emoji].push(r.username);
+    });
+    container.innerHTML = '';
+    Object.entries(grouped).forEach(([emoji, users]) => {
+      const isMine = users.includes(currentUser);
+      const pill = document.createElement('div');
+      pill.className = 'reaction-pill' + (isMine ? ' mine' : '');
+      pill.title = users.join(', ');
+      pill.innerHTML = `${emoji}<span class="r-count">${users.length}</span>`;
+      pill.onclick = (e) => { e.stopPropagation(); addReaction(msgId, emoji); };
+      container.appendChild(pill);
+    });
+  });
+}
+
+// ── 發送／編輯訊息 ──
 async function sendMessage() {
   const input = document.getElementById('msg-input');
   const content = input.value.trim();
+  if (!sb) { showToast('連線中，請稍後再試'); return; }
+
+  // 編輯模式
+  if (editingMsgId) {
+    if (!content) return;
+    input.value = '';
+    await sb.from('messages').update({ content, edited_at: new Date().toISOString() }).eq('id', editingMsgId);
+    cancelEdit();
+    return;
+  }
+
   if (!content && !selectedFile) return;
   if (!currentRoomId) return;
-  if (!sb) { showToast('連線中，請稍後再試'); return; }
   const btn = document.getElementById('send-btn');
   btn.disabled = true; input.value = '';
   let file_url = null, file_name = null;
@@ -573,6 +902,11 @@ function openLightbox(url) {
 
 // ── 工具 ──
 function scrollToBottom() { const el = document.getElementById('messages'); setTimeout(() => { el.scrollTop = el.scrollHeight; }, 50); }
+function showToast(text) {
+  const old = document.querySelector('.toast'); if (old) old.remove();
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = text;
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2500);
+}
 function escHtml(str) { if (!str) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function strToColor(str) {
   const c = ['#5b6af0','#e05fa0','#f0955b','#3dd68c','#f0c95b','#5bc8f0','#a05bf0','#f05b5b'];
@@ -585,6 +919,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('username-input').addEventListener('keydown', e => { if (e.key === 'Enter') joinChat(); });
   document.getElementById('new-room-name').addEventListener('keydown', e => { if (e.key === 'Enter') createRoom(); });
   document.getElementById('room-pwd-input').addEventListener('keydown', e => { if (e.key === 'Enter') submitPwd(); });
+  document.getElementById('admin-pwd-input').addEventListener('keydown', e => { if (e.key === 'Enter') verifyAdmin(); });
   init();
 });
 </script>
