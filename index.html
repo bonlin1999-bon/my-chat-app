@@ -613,8 +613,12 @@ async function enterRoom(roomId, roomName, skipCheck) {
 
 // ── 打字提示 ──
 let typingUsers = {};
+let lastTypedAt = 0;
 function handleTyping() {
   if (!presenceChannel || !currentRoomId) return;
+  const now = Date.now();
+  if (now - lastTypedAt < 2000) return;
+  lastTypedAt = now;
   presenceChannel.send({ type: 'broadcast', event: 'typing', payload: { username: currentUser } });
 }
 
@@ -663,6 +667,7 @@ function addDateDivider(text) {
 
 // ── 顯示訊息 ──
 function appendMessage(msg, animate) {
+  if (document.querySelector(`.msg-row[data-id="${msg.id}"]`)) return;
   const container = document.getElementById('messages');
   const welcome = container.querySelector('.welcome-msg');
   if (welcome) welcome.remove();
@@ -857,11 +862,12 @@ async function sendMessage() {
     if (!res) { btn.disabled = false; return; }
     file_url = res.url; file_name = res.name; cancelUpload();
   }
-  const { error } = await sb.from('messages').insert({ room_id: currentRoomId, username: currentUser, content: content || null, file_url, file_name });
+  const { data, error } = await sb.from('messages').insert({ room_id: currentRoomId, username: currentUser, content: content || null, file_url, file_name }).select().single();
   if (error) {
     showToast('發送失敗：' + error.message);
     btn.disabled = false; return;
   }
+  if (data) appendMessage(data, true);
   btn.disabled = false; input.focus();
 }
 
