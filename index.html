@@ -836,6 +836,8 @@ function groupAndRenderReactions(reactions) {
 async function sendMessage() {
   const input = document.getElementById('msg-input');
   const content = input.value.trim();
+  if (!content && !selectedFile) return;
+  if (!currentRoomId) return;
   if (!sb) { showToast('連線中，請稍後再試'); return; }
 
   // 編輯模式
