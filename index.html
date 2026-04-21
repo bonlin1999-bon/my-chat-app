@@ -379,9 +379,66 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
 <script>
 const { createClient } = supabase;
 let sb, currentUser, currentRoomId, currentRoomName, realtimeChannel, presenceChannel;
-let pendingRoom = null, selectedFile = null, notifEnabled = false;
+let pendingRoom = null, selectedFile = null, currentRoomKey = null;
+let notifEnabled = localStorage.getItem('chat_notif') === '1';
 let editingMsgId = null, typingTimeout = null;
 const EMOJIS = ['👍','❤️','😂','😮','😢','🔥'];
+
+// ── Web Crypto API 工具 (E2EE & Hash) ──
+async function sha256Hex(text) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function deriveKey(password, saltStr) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]
+  );
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt: enc.encode(saltStr), iterations: 100000, hash: "SHA-256" },
+    keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+  );
+}
+
+function bufToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return window.btoa(binary);
+}
+
+function base64ToBuf(b64) {
+  const binary = window.atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function encryptDataWithKey(text, key) {
+  if (!text || !key) return text;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = new TextEncoder();
+  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(text));
+  return 'E2EE:' + bufToBase64(iv) + ':' + bufToBase64(cipher);
+}
+
+async function decryptDataWithKey(encryptedStr, key) {
+  if (!encryptedStr || typeof encryptedStr !== 'string' || !encryptedStr.startsWith('E2EE:') || !key) return encryptedStr;
+  try {
+    const parts = encryptedStr.split(':');
+    const iv = base64ToBuf(parts[1]);
+    const cipher = base64ToBuf(parts[2]);
+    const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, cipher);
+    const dec = new TextDecoder();
+    return dec.decode(decrypted);
+  } catch(e) {
+    return "🔒 [加密訊息無法解密]";
+  }
+}
 
 async function init() {
   try {
@@ -394,6 +451,7 @@ async function init() {
     if (saved) enterApp(saved);
     else { document.getElementById('login-screen').style.display = 'flex'; }
     registerSW();
+    updateNotifBtn(); // 更新鈴鐺狀態
   } catch(e) {
     document.querySelector('.loading-text').textContent = '載入失敗，請重新整理';
   }
@@ -437,21 +495,62 @@ function logout() {
 }
 
 // ── 通知 ──
+
 async function toggleNotif() {
-  if (notifEnabled) { notifEnabled = false; updateNotifBtn(); showToast('通知已關閉'); return; }
+  if (notifEnabled) { 
+    notifEnabled = false; 
+    localStorage.setItem('chat_notif', '0');
+    updateNotifBtn(); 
+    showToast('通知已關閉'); 
+    return; 
+  }
   if (!('Notification' in window)) { showToast('此瀏覽器不支援通知'); return; }
   const perm = await Notification.requestPermission();
-  if (perm === 'granted') { notifEnabled = true; updateNotifBtn(); showToast('通知已開啟 🔔'); }
+  if (perm === 'granted') { 
+    notifEnabled = true; 
+    localStorage.setItem('chat_notif', '1');
+    updateNotifBtn(); 
+    showToast('通知已開啟 🔔'); 
+  }
   else { showToast('請在瀏覽器設定中允許通知'); }
 }
 
-function updateNotifBtn() { document.getElementById('notif-btn').classList.toggle('on', notifEnabled); }
+function updateNotifBtn() { 
+  const btn = document.getElementById('notif-btn');
+  if (btn) btn.classList.toggle('on', notifEnabled); 
+}
 
 function sendNotif(msg) {
   if (!notifEnabled || Notification.permission !== 'granted') return;
   if (document.visibilityState === 'visible') return;
   if (msg.username === currentUser) return;
-  new Notification(`${msg.username}：`, { body: msg.content || '傳送了檔案', tag: 'chat-msg' });
+  
+  const title = `${msg.username}：`;
+  const options = { 
+    body: msg.content || '傳送了檔案', 
+    tag: 'chat-msg-' + msg.id, // 改回唯一標籤，確保每次都彈出新通知框
+    icon: '/manifest/icon-192.png'
+  };
+
+  try {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then(reg => {
+        reg.showNotification(title, options);
+      }).catch(e => fallbackNotif(title, options));
+    } else {
+      fallbackNotif(title, options);
+    }
+  } catch(e) {
+    fallbackNotif(title, options);
+  }
+}
+
+function fallbackNotif(title, options) {
+  const n = new Notification(title, options);
+  n.onclick = () => {
+    window.focus();
+    n.close();
+  };
 }
 
 // ── 管理員 ──
@@ -531,26 +630,53 @@ async function loadRooms() {
 // ── 密碼保護 ──
 function tryEnterRoom(room) {
   if (room.password) {
-    const cached = sessionStorage.getItem('unlocked_' + room.id);
-    if (cached === room.password) { enterRoom(room.id, room.name, true); return; }
-    pendingRoom = room;
-    document.getElementById('pwd-modal-desc').textContent = `「${room.name}」已設定密碼保護`;
-    document.getElementById('room-pwd-input').value = '';
-    document.getElementById('pwd-error').style.display = 'none';
-    document.getElementById('pwd-modal').style.display = 'flex';
-    setTimeout(() => document.getElementById('room-pwd-input').focus(), 100);
+    const cachedPwd = sessionStorage.getItem('unlocked_' + room.id);
+    if (cachedPwd) {
+      sha256Hex(cachedPwd).then(hash => {
+        if (hash === room.password) {
+          enterRoom(room.id, room.name, true);
+        } else {
+          sessionStorage.removeItem('unlocked_' + room.id);
+          showPwdModal(room);
+        }
+      });
+      return;
+    }
+    showPwdModal(room);
   } else { enterRoom(room.id, room.name, true); }
 }
 
-function submitPwd() {
+function showPwdModal(room) {
+  pendingRoom = room;
+  document.getElementById('pwd-modal-desc').textContent = `「${room.name}」已設定密碼保護`;
+  document.getElementById('room-pwd-input').value = '';
+  document.getElementById('pwd-error').style.display = 'none';
+  document.getElementById('pwd-modal').style.display = 'flex';
+  setTimeout(() => document.getElementById('room-pwd-input').focus(), 100);
+}
+
+async function submitPwd() {
   const val = document.getElementById('room-pwd-input').value;
-  if (val === pendingRoom.password) {
-    sessionStorage.setItem('unlocked_' + pendingRoom.id, pendingRoom.password);
-    closePwdModal(); enterRoom(pendingRoom.id, pendingRoom.name, true);
-  } else {
+  if (!val) return;
+  try {
+    const res = await fetch('/api/verify', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ roomId: pendingRoom.id, password: val })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      sessionStorage.setItem('unlocked_' + pendingRoom.id, val);
+      closePwdModal(); enterRoom(pendingRoom.id, pendingRoom.name, true);
+    } else {
+      document.getElementById('pwd-error').style.display = 'block';
+      document.getElementById('pwd-error').textContent = data.error || '密碼錯誤';
+      document.getElementById('room-pwd-input').value = '';
+      document.getElementById('room-pwd-input').focus();
+    }
+  } catch(e) {
     document.getElementById('pwd-error').style.display = 'block';
-    document.getElementById('room-pwd-input').value = '';
-    document.getElementById('room-pwd-input').focus();
+    document.getElementById('pwd-error').textContent = '驗證連線失敗';
   }
 }
 function closePwdModal() { document.getElementById('pwd-modal').style.display = 'none'; pendingRoom = null; }
@@ -568,7 +694,13 @@ async function createRoom() {
   const name = document.getElementById('new-room-name').value.trim();
   const pwd = document.getElementById('new-room-pwd').value.trim();
   if (!name) { alert('請輸入聊天室名稱！'); return; }
-  const { data, error } = await sb.from('rooms').insert({ name, password: pwd || null }).select().single();
+  
+  let pwdHash = null;
+  if (pwd) {
+    pwdHash = await sha256Hex(pwd);
+  }
+
+  const { data, error } = await sb.from('rooms').insert({ name, password: pwdHash }).select().single();
   if (error) { alert('建立失敗：' + error.message); return; }
   closeCreateModal();
   if (pwd) sessionStorage.setItem('unlocked_' + data.id, pwd);
@@ -576,9 +708,26 @@ async function createRoom() {
   enterRoom(data.id, data.name, true);
 }
 
+async function processMessageForDecryption(msg) {
+  if (!currentRoomKey) return msg;
+  const decrypted = { ...msg };
+  if (decrypted.content) decrypted.content = await decryptDataWithKey(decrypted.content, currentRoomKey);
+  if (decrypted.file_url) decrypted.file_url = await decryptDataWithKey(decrypted.file_url, currentRoomKey);
+  if (decrypted.file_name) decrypted.file_name = await decryptDataWithKey(decrypted.file_name, currentRoomKey);
+  return decrypted;
+}
+
 // ── 進入聊天室 ──
 async function enterRoom(roomId, roomName, skipCheck) {
   currentRoomId = roomId; currentRoomName = roomName;
+  
+  const currentRoomPwd = sessionStorage.getItem('unlocked_' + roomId);
+  if (currentRoomPwd) {
+    currentRoomKey = await deriveKey(currentRoomPwd, roomId);
+  } else {
+    currentRoomKey = null;
+  }
+
   document.querySelectorAll('.room-item').forEach(el => el.classList.toggle('active', el.dataset.id === roomId));
   document.getElementById('no-room-state').style.display = 'none';
   document.getElementById('chat-view').style.display = 'flex';
@@ -594,9 +743,16 @@ async function enterRoom(roomId, roomName, skipCheck) {
 
   realtimeChannel = sb.channel('messages-' + roomId, { config: { broadcast: { self: true } } })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` },
-      payload => { appendMessage(payload.new, true); sendNotif(payload.new); })
+      async payload => { 
+        const dMsg = await processMessageForDecryption(payload.new);
+        appendMessage(dMsg, true); 
+        sendNotif(dMsg); 
+      })
     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` },
-      payload => { updateMessageInDom(payload.new); })
+      async payload => { 
+        const dMsg = await processMessageForDecryption(payload.new);
+        updateMessageInDom(dMsg); 
+      })
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reactions' },
       payload => { loadReactions(payload.new.message_id); })
     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'reactions' },
@@ -649,9 +805,10 @@ async function loadHistory(roomId) {
   data.reverse(); // Reverse so older messages are at the top and newest at the bottom
   let lastDate = '';
   for (const msg of data) {
-    const d = new Date(msg.created_at).toLocaleDateString('zh-Hant', { month: 'long', day: 'numeric' });
+    const dMsg = await processMessageForDecryption(msg);
+    const d = new Date(dMsg.created_at).toLocaleDateString('zh-Hant', { month: 'long', day: 'numeric' });
     if (d !== lastDate) { lastDate = d; addDateDivider(d); }
-    appendMessage(msg, false);
+    appendMessage(dMsg, false);
   }
   scrollToBottom();
   // 載入所有訊息的反應
@@ -848,7 +1005,13 @@ async function sendMessage() {
   if (editingMsgId) {
     if (!content) return;
     input.value = '';
-    await sb.from('messages').update({ content, edited_at: new Date().toISOString() }).eq('id', editingMsgId);
+    
+    let eContent = content;
+    if (currentRoomKey) {
+      eContent = await encryptDataWithKey(content, currentRoomKey);
+    }
+    
+    await sb.from('messages').update({ content: eContent, edited_at: new Date().toISOString() }).eq('id', editingMsgId);
     cancelEdit();
     return;
   }
@@ -863,12 +1026,25 @@ async function sendMessage() {
     if (!res) { btn.disabled = false; return; }
     file_url = res.url; file_name = res.name; cancelUpload();
   }
-  const { data, error } = await sb.from('messages').insert({ room_id: currentRoomId, username: currentUser, content: content || null, file_url, file_name }).select().single();
+  let eContent = content;
+  let eFileUrl = file_url;
+  let eFileName = file_name;
+
+  if (currentRoomKey) {
+    if (eContent) eContent = await encryptDataWithKey(eContent, currentRoomKey);
+    if (eFileUrl) eFileUrl = await encryptDataWithKey(eFileUrl, currentRoomKey);
+    if (eFileName) eFileName = await encryptDataWithKey(eFileName, currentRoomKey);
+  }
+
+  const { data, error } = await sb.from('messages').insert({ room_id: currentRoomId, username: currentUser, content: eContent || null, file_url: eFileUrl, file_name: eFileName }).select().single();
   if (error) {
     showToast('發送失敗：' + error.message);
     btn.disabled = false; return;
   }
-  if (data) appendMessage(data, true);
+  if (data) {
+    const dMsg = await processMessageForDecryption(data);
+    appendMessage(dMsg, true);
+  }
   btn.disabled = false; input.focus();
 }
 

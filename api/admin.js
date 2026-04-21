@@ -26,7 +26,7 @@ export default async function handler(req, res) {
       const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       query = query.lt('created_at', cutoff);
     } else {
-      query = query.neq('id', '00000000-0000-0000-0000-000000000000');
+      query = query.not('id', 'is', null);
     }
 
     const { data, error } = await query.select();
