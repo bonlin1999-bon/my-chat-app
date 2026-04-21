@@ -287,6 +287,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex
         <label for="clear-old">清除 30 天前的訊息</label>
         <span>保留近期</span>
       </div>
+      <div class="clear-option" onclick="document.getElementById('clear-3days').click()">
+        <input type="radio" name="clear-type" id="clear-3days" value="3days">
+        <label for="clear-3days">清除 3 天前的訊息</label>
+        <span>保留最近</span>
+      </div>
       <div class="clear-option" onclick="document.getElementById('clear-all').click()">
         <input type="radio" name="clear-type" id="clear-all" value="all">
         <label for="clear-all">清除全部訊息</label>

@@ -25,6 +25,9 @@ export default async function handler(req, res) {
     if (clearType === 'old') {
       const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       query = query.lt('created_at', cutoff);
+    } else if (clearType === '3days') {
+      const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+      query = query.lt('created_at', cutoff);
     } else {
       query = query.not('id', 'is', null);
     }
