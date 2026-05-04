@@ -811,8 +811,12 @@ async function processMessageForDecryption(msg) {
 async function enterRoom(roomId, roomName, skipCheck) {
   currentRoomId = roomId; currentRoomName = roomName;
   const currentRoomPwd = sessionStorage.getItem('unlocked_' + roomId);
-  if (currentRoomPwd) currentRoomKey = await deriveKey(currentRoomPwd, roomId);
-  else currentRoomKey = null;
+  if (currentRoomPwd) {
+    currentRoomKey = await deriveKey(currentRoomPwd, roomId);
+  } else {
+    // 公開房間：使用預設混淆字串來加密，防止在資料庫中以明文顯示
+    currentRoomKey = await deriveKey(roomId + '_public_default_secret', roomId);
+  }
 
   document.getElementById('app-container').classList.add('in-chat');
   document.getElementById('room-name-display').textContent = roomName;
