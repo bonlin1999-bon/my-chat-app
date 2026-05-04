@@ -474,6 +474,7 @@ body{font-family:var(--font);color:var(--text);display:flex;justify-content:cent
 // --- 核心邏輯保留與更新 ---
 const { createClient } = supabase;
 let sb, currentUser, currentRoomId, currentRoomName, realtimeChannel, presenceChannel;
+let globalPublicSecret = '';
 let pendingRoom = null, selectedFile = null, currentRoomKey = null;
 let notifEnabled = localStorage.getItem('chat_notif') === '1';
 let editingMsgId = null, typingTimeout = null;
@@ -538,8 +539,9 @@ async function decryptDataWithKey(encryptedStr, key) {
 async function init() {
   try {
     const res = await fetch('/api/config');
-    const { url, key } = await res.json();
+    const { url, key, publicSecret } = await res.json();
     if (!url || !key) throw new Error('設定不完整');
+    globalPublicSecret = publicSecret || 'fallback_secret_please_set_in_vercel';
     sb = createClient(url, key);
     document.getElementById('loading-screen').style.display = 'none';
     const saved = sessionStorage.getItem('chat_username');
@@ -814,8 +816,8 @@ async function enterRoom(roomId, roomName, skipCheck) {
   if (currentRoomPwd) {
     currentRoomKey = await deriveKey(currentRoomPwd, roomId);
   } else {
-    // 公開房間：使用預設混淆字串來加密，防止在資料庫中以明文顯示
-    currentRoomKey = await deriveKey(roomId + '_public_default_secret', roomId);
+    // 公開房間：使用後端下發的金鑰來加密，防止在資料庫中以明文顯示
+    currentRoomKey = await deriveKey(roomId + globalPublicSecret, roomId);
   }
 
   document.getElementById('app-container').classList.add('in-chat');
