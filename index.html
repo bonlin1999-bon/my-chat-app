@@ -380,6 +380,10 @@ body{font-family:var(--font);color:var(--text);display:flex;justify-content:cent
         <input type="radio" name="clear-type" id="clear-all" value="all">
         <label for="clear-all">清除全部訊息</label>
       </div>
+      <div class="clear-option" onclick="document.getElementById('delete-room').click()">
+        <input type="radio" name="clear-type" id="delete-room" value="delete_room">
+        <label for="delete-room" style="color:var(--red)">刪除整個聊天室 (含訊息)</label>
+      </div>
       <div class="modal-btns" style="margin-top:24px">
         <button class="btn-s" onclick="closeAdminModal()">關閉</button>
         <button class="btn-danger" onclick="executeAdminClear()">執行清除</button>
@@ -669,18 +673,37 @@ async function executeAdminClear() {
   const pwd = document.getElementById('admin-pwd-input').value || sessionStorage.getItem('admin_verified');
   const roomId = document.getElementById('admin-room-select').value;
   const clearType = document.querySelector('input[name="clear-type"]:checked').value;
-  if (!confirm(`確定要清除訊息嗎？此操作不可還原！`)) return;
+  
+  if (clearType === 'delete_room' && roomId === 'all') {
+    alert('無法一次刪除全部聊天室，請先在上方選擇特定聊天室。');
+    return;
+  }
+  
+  const confirmMsg = clearType === 'delete_room' ? '確定要徹底刪除這個聊天室嗎？此操作不可還原！' : '確定要清除訊息嗎？此操作不可還原！';
+  if (!confirm(confirmMsg)) return;
+
   try {
     const res = await fetch('/api/admin', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ action: 'clear', password: document.getElementById('admin-pwd-input').value || '', roomId, clearType })
+      body: JSON.stringify({ action: 'clear', password: pwd || '', roomId, clearType })
     });
     const data = await res.json();
     if (data.ok) {
-      showToast(`已清除 ${data.count} 則訊息`);
+      if (data.deletedRoom) {
+        showToast('已成功刪除該聊天室');
+        if (currentRoomId === roomId) {
+          goBackToLobby();
+        }
+        await loadRooms();
+      } else {
+        showToast(`已清除 ${data.count} 則訊息`);
+        if (currentRoomId && (roomId === 'all' || currentRoomId === roomId)) {
+          document.getElementById('messages').innerHTML = '';
+          await loadHistory(currentRoomId);
+        }
+      }
       closeAdminModal();
-      if (currentRoomId) { document.getElementById('messages').innerHTML = ''; await loadHistory(currentRoomId); }
     } else { showToast('清除失敗：' + (data.error || '未知錯誤')); }
   } catch(e) { showToast('清除失敗'); }
 }
