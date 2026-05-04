@@ -16,6 +16,22 @@ export default async function handler(req, res) {
 
   if (action === 'clear') {
     const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_KEY);
+
+    if (clearType === 'delete_room') {
+      if (!roomId || roomId === 'all') {
+        return res.status(400).json({ ok: false, error: '必須指定一個聊天室才能刪除' });
+      }
+      // 先刪除該房間下的所有訊息
+      await sb.from('messages').delete().eq('room_id', roomId);
+      // 再刪除房間本身
+      const { data, error } = await sb.from('rooms').delete().eq('id', roomId).select();
+      if (error) return res.status(500).json({ ok: false, error: error.message });
+      if (!data || data.length === 0) {
+        return res.status(403).json({ ok: false, error: '權限不足或找不到房間（請確認 Vercel 有設定 SUPABASE_SERVICE_KEY）' });
+      }
+      return res.status(200).json({ ok: true, count: 0, deletedRoom: true });
+    }
+
     let query = sb.from('messages').delete();
 
     if (roomId && roomId !== 'all') {
